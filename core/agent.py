@@ -11,6 +11,9 @@ O agente é recriado a cada sessão (as tools dependem das credenciais Google).
 
 from __future__ import annotations
 
+from datetime import datetime
+
+import pytz
 import streamlit as st
 from google.oauth2.credentials import Credentials
 
@@ -33,11 +36,27 @@ Suas capacidades:
 Diretrizes:
 - Responda sempre em português brasileiro.
 - Seja conciso, direto e útil. Use markdown para formatar respostas longas.
+- Use a data/hora atual fornecida abaixo para interpretar termos relativos
+  como "hoje", "amanhã", "semana que vem". NUNCA pergunte que dia é hoje.
+- O fuso horário padrão é America/Sao_Paulo. NUNCA pergunte o fuso ao usuário.
 - Ao criar ou alterar eventos, confirme os detalhes antes de executar.
 - Ao usar RAG, cite o nome do documento fonte.
 - Equilibre proativamente compromissos profissionais com blocos de tempo pessoal na agenda.
 - Se não encontrar uma informação, diga claramente e sugira alternativas.
 """
+
+
+def _current_datetime_context() -> str:
+    """Gera uma linha com data/hora atual no fuso de São Paulo."""
+    tz  = pytz.timezone("America/Sao_Paulo")
+    now = datetime.now(tz)
+    dias   = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira",
+              "sexta-feira", "sábado", "domingo"]
+    dia_semana = dias[now.weekday()]
+    return (
+        f"\n\nDATA/HORA ATUAL: {dia_semana}, {now.strftime('%d/%m/%Y %H:%M')} "
+        f"(fuso America/Sao_Paulo)."
+    )
 
 
 def create_agent(creds: Credentials):
@@ -61,7 +80,9 @@ def create_agent(creds: Credentials):
     # ── nós ────────────────────────────────────────────────────────────────────
 
     def call_model(state: MessagesState):
-        messages = [SystemMessage(content=SYSTEM_PROMPT)] + state["messages"]
+        # Injeta a data/hora atual a cada chamada para resolver "hoje"/"amanhã".
+        system_content = SYSTEM_PROMPT + _current_datetime_context()
+        messages = [SystemMessage(content=system_content)] + state["messages"]
         response = llm.invoke(messages)
         return {"messages": [response]}
 
