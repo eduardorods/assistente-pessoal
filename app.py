@@ -8,7 +8,6 @@ Gerencia:
 """
 
 import streamlit as st
-import streamlit.components.v1 as components
 from langchain_core.messages import HumanMessage, AIMessage
 
 # ── Configuração da página — DEVE ser a primeira chamada Streamlit ────────────
@@ -49,16 +48,24 @@ def render_login_screen():
         )
         st.divider()
 
-        if st.button("🔐  Conectar com Google", type="primary", use_container_width=True):
-            auth_url = get_authorization_url()
-            # JavaScript redirect — necessário para OAuth funcionar na mesma aba.
-            # st.link_button abriria nova aba, quebrando o fluxo de callback.
-            components.html(
-                f"<script>window.top.location.href = '{auth_url}';</script>",
-                height=0,
-            )
-            st.info("Redirecionando para o Google… aguarde.")
-            st.stop()
+        # Geramos a URL de autorização a cada render (o state é salvo em
+        # session_state junto). Apresentamos como um LINK que o usuário clica:
+        # o clique conta como "ação do usuário", então o navegador permite a
+        # navegação na mesma aba — preservando a sessão para validar o callback.
+        # (Redirect automático via JS é bloqueado dentro do iframe do Codespaces.)
+        auth_url = get_authorization_url()
+        st.markdown(
+            f'''
+            <a href="{auth_url}" target="_self" style="
+                display:inline-block; width:100%; box-sizing:border-box;
+                text-align:center; background:#4F46E5; color:#ffffff;
+                padding:0.65rem 1rem; border-radius:0.5rem;
+                text-decoration:none; font-weight:600;">
+                🔐 Conectar com Google
+            </a>
+            ''',
+            unsafe_allow_html=True,
+        )
 
         st.caption(
             "Escopos solicitados: Calendar (leitura/escrita), "
