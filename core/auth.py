@@ -14,14 +14,15 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import Flow
 
-# Escopos necessários para Calendar, Drive e Docs
+# Escopos necessários para Calendar, Drive, Docs e Sheets
 SCOPES = [
     "openid",
     "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/userinfo.profile",
     "https://www.googleapis.com/auth/calendar",
-    "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/documents",
+    "https://www.googleapis.com/auth/spreadsheets",
 ]
 
 SESSION_KEY = "google_credentials"
