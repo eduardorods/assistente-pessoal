@@ -112,10 +112,17 @@ def run_agent(agent, messages: list[BaseMessage]) -> str:
     # Gemini via LangChain pode retornar content como lista de blocos
     # ex: [{'type': 'text', 'text': '...', 'extras': {...}}]
     if isinstance(content, list):
-        return " ".join(
+        content = " ".join(
             block["text"]
             for block in content
             if isinstance(block, dict) and block.get("type") == "text" and block.get("text")
         ).strip()
+
+    # Blindagem: nunca devolver resposta vazia ao usuário.
+    if not content or not str(content).strip():
+        return (
+            "Concluí o processamento, mas não recebi um texto de resposta do modelo. "
+            "Pode reformular o pedido ou tentar novamente?"
+        )
 
     return content
