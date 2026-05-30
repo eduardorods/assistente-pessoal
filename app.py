@@ -25,7 +25,7 @@ from core.auth  import (
     is_authenticated,
     logout,
 )
-from core.audio import render_audio_input
+from core.audio import render_audio_input, speak
 from core.agent import create_agent, run_agent
 
 # ── Chaves de session_state ───────────────────────────────────────────────────
@@ -136,8 +136,11 @@ def render_sidebar():
         st.caption("Powered by Gemini · LangGraph · Google Workspace")
 
 
-def process_message(text: str):
-    """Envia a mensagem ao agente e exibe resposta em streaming-style."""
+def process_message(text: str, falar: bool = False):
+    """
+    Envia a mensagem ao agente e exibe a resposta.
+    Se falar=True, a resposta também é lida em voz alta (TTS no navegador).
+    """
     history: list = st.session_state[CHAT_HISTORY_KEY]
     agent         = st.session_state[AGENT_KEY]
 
@@ -153,6 +156,8 @@ def process_message(text: str):
             except Exception as exc:
                 response = f"❌ Erro ao processar: {exc}"
         st.markdown(response)
+        if falar and not response.startswith("❌"):
+            speak(response)
 
     history.append(AIMessage(content=response))
     st.session_state[CHAT_HISTORY_KEY] = history
@@ -172,18 +177,17 @@ def render_chat():
             with st.chat_message("assistant"):
                 st.markdown(msg.content)
 
-    # ── Entrada por voz ───────────────────────────────────────────────────────
-    # Não chamamos process_message aqui dentro: renderizar chat dentro do
-    # expander quebra o contexto e re-transcreve o áudio a cada rerun. Em vez
-    # disso, guardamos a transcrição em _quick_prompt e deixamos o fluxo
-    # principal processá-la após renderizar o chat (mesmo padrão das ações rápidas).
+    # ── Entrada por voz (envio automático) ────────────────────────────────────
+    # Assim que a transcrição fica pronta, enviamos automaticamente — sem botão.
+    # render_audio_input deduplica por hash, então não reenvia a mesma gravação.
+    # Guardamos em _quick_prompt e deixamos o fluxo principal processar.
     with st.expander("🎙️ Entrada por voz", expanded=False):
+        st.caption("Grave e a mensagem é enviada automaticamente. A resposta será falada.")
         transcribed = render_audio_input()
         if transcribed:
-            st.success(f"Transcrição: *{transcribed}*")
-            if st.button("Enviar transcrição", key="send_audio"):
-                st.session_state["_quick_prompt"] = transcribed
-                st.rerun()
+            st.session_state["_quick_prompt"]  = transcribed
+            st.session_state["_prompt_by_voice"] = True
+            st.rerun()
 
     # ── Entrada por texto ─────────────────────────────────────────────────────
     user_input = st.chat_input("Digite sua mensagem…")
@@ -201,11 +205,13 @@ oauth_just_completed = handle_oauth_callback()
 if oauth_just_completed:
     st.rerun()  # Rerun limpo após persistir as credenciais
 
-# PASSO 2: Processa quick prompts das ações rápidas (se houver)
+# PASSO 2: Processa quick prompts (ações rápidas ou voz), se houver
 if "_quick_prompt" in st.session_state and is_authenticated():
-    pending_prompt = st.session_state.pop("_quick_prompt")
+    pending_prompt   = st.session_state.pop("_quick_prompt")
+    pending_by_voice = st.session_state.pop("_prompt_by_voice", False)
 else:
-    pending_prompt = None
+    pending_prompt   = None
+    pending_by_voice = False
 
 # PASSO 3: Roteamento — login ou app
 if not is_authenticated():
@@ -215,6 +221,7 @@ else:
     render_sidebar()
     render_chat()
 
-    # Injeta o quick prompt após renderizar o chat (para aparecer no histórico)
+    # Injeta o quick prompt após renderizar o chat (para aparecer no histórico).
+    # Se veio por voz, a resposta é lida em voz alta (TTS).
     if pending_prompt:
-        process_message(pending_prompt)
+        process_message(pending_prompt, falar=pending_by_voice)
