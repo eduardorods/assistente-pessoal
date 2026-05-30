@@ -84,6 +84,17 @@ def run_agent(agent, messages: list[BaseMessage]) -> str:
     """
     Executa o agente com o histórico de mensagens e retorna a resposta final.
     """
-    result = agent.invoke({"messages": messages})
-    last   = result["messages"][-1]
-    return last.content if hasattr(last, "content") else str(last)
+    result  = agent.invoke({"messages": messages})
+    last    = result["messages"][-1]
+    content = last.content if hasattr(last, "content") else str(last)
+
+    # Gemini via LangChain pode retornar content como lista de blocos
+    # ex: [{'type': 'text', 'text': '...', 'extras': {...}}]
+    if isinstance(content, list):
+        return " ".join(
+            block["text"]
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text" and block.get("text")
+        ).strip()
+
+    return content
