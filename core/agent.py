@@ -25,8 +25,11 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from core.tools.calendar_tool import make_calendar_tools
 from core.tools.drive_tool    import make_drive_tools
 from core.tools.sheets_tool   import make_sheets_tools
+from core.tools.gmail_tool    import make_gmail_tools
+from core.tools.memory_tool   import make_memory_tools
 from core.tools.scraper_tool  import make_scraper_tools
 from core.tools.search_tool   import make_search_tools
+from core.profile             import get_user_profile
 
 SYSTEM_PROMPT = """Você é um assistente pessoal inteligente e proativo, integrado ao Google Workspace.
 
@@ -34,6 +37,8 @@ Suas capacidades:
 - **Google Calendar**: consultar agenda, criar/reagendar/cancelar eventos, encontrar horários livres.
 - **Google Drive & Docs**: buscar documentos, ler conteúdo, fazer análises com RAG, criar e editar documentos.
 - **Google Sheets**: criar planilhas, adicionar/ler/atualizar dados em planilhas existentes.
+- **Gmail**: listar e-mails não lidos com resumo, ler mensagens, salvar anexos no Drive.
+- **Memória**: lembrar e memorizar fatos sobre o usuário ao longo do tempo (tools lembrar/memorizar).
 - **Busca na internet**: pesquisar qualquer assunto público (notícias, clima, cotações, fatos atuais) com a ferramenta buscar_internet.
 - **Web Scraping**: acessar uma URL específica para monitorar relatórios e notícias de mercado.
 
@@ -45,8 +50,22 @@ Diretrizes:
   outra localização. NUNCA pergunte o fuso ou a cidade ao usuário.
 - Ao criar ou alterar eventos, confirme os detalhes antes de executar.
 - Ao usar RAG, cite o nome do documento fonte.
-- Equilibre proativamente compromissos profissionais com blocos de tempo pessoal na agenda.
-- Se não encontrar uma informação, diga claramente e sugira alternativas.
+- Use o nome do usuário (perfil) ao se dirigir a ele, de forma natural.
+- Quando o usuário compartilhar uma preferência, decisão ou fato relevante e
+  duradouro, use a tool 'memorizar' para registrá-lo. Não memorize trivialidades.
+
+GESTÃO DE ROTINA (trabalho × vida pessoal):
+- Ao analisar a agenda, identifique desequilíbrios (ex: dias sobrecarregados
+  de reuniões, ausência de tempo pessoal, refeições ou exercício).
+- Proponha proativamente blocos protegidos de tempo pessoal (treino/musculação,
+  família, foco). Só crie eventos após confirmação do usuário.
+- Ao agendar compromissos profissionais, verifique conflito com blocos pessoais
+  já existentes e avise antes de sobrepor.
+
+BRIEFING DIÁRIO:
+- Quando o usuário pedir um "briefing", "resumo do dia" ou "bom dia", produza um
+  resumo conciso combinando: e-mails não lidos (listar_emails), agenda do dia
+  (listar_eventos) e qualquer lembrete relevante da memória (lembrar).
 """
 
 
@@ -72,6 +91,8 @@ def create_agent(creds: Credentials):
         make_calendar_tools(creds)
         + make_drive_tools(creds)
         + make_sheets_tools(creds)
+        + make_gmail_tools(creds)
+        + make_memory_tools(creds)
         + make_scraper_tools()
         + make_search_tools()
     )
@@ -85,9 +106,12 @@ def create_agent(creds: Credentials):
 
     # ── nós ────────────────────────────────────────────────────────────────────
 
+    # Perfil é estático na sessão — lê uma vez ao montar o agente.
+    user_profile = get_user_profile()
+
     def call_model(state: MessagesState):
-        # Injeta a data/hora atual a cada chamada para resolver "hoje"/"amanhã".
-        system_content = SYSTEM_PROMPT + _current_datetime_context()
+        # Injeta data/hora atual e perfil do usuário a cada chamada.
+        system_content = SYSTEM_PROMPT + _current_datetime_context() + user_profile
         messages = [SystemMessage(content=system_content)] + state["messages"]
         response = llm.invoke(messages)
         return {"messages": [response]}
