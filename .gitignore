@@ -1,0 +1,33 @@
+# Secrets — NUNCA commitar
+.env
+.streamlit/secrets.toml
+client_secret*.json
+token.json
+credentials.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Streamlit
+.streamlit/stats/
+
+# Índices LlamaIndex
+storage/

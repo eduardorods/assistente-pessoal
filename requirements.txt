@@ -1,0 +1,39 @@
+# ── Interface ──────────────────────────────────────────────────────────────────
+streamlit>=1.40.0
+streamlit-extras>=0.4.0
+
+# ── Google APIs ────────────────────────────────────────────────────────────────
+google-auth>=2.29.0
+google-auth-oauthlib>=1.2.0
+google-auth-httplib2>=0.2.0
+google-api-python-client>=2.130.0
+
+# ── LangGraph / LangChain ──────────────────────────────────────────────────────
+langchain>=0.3.0
+langchain-google-genai>=2.0.0
+langchain-community>=0.3.0
+langgraph>=0.2.28
+
+# ── LlamaIndex (RAG sobre Drive) ───────────────────────────────────────────────
+llama-index>=0.11.0
+llama-index-llms-gemini>=0.3.0
+llama-index-embeddings-gemini>=0.2.0
+llama-index-readers-google>=0.3.0
+
+# ── Gemini SDK (raciocínio + transcrição de áudio) ────────────────────────────────
+google-generativeai>=0.8.0
+
+# ── Web Scraping ───────────────────────────────────────────────────────────────
+selenium>=4.20.0
+webdriver-manager>=4.0.1
+beautifulsoup4>=4.12.3
+requests>=2.32.0
+lxml>=5.2.0
+ddgs>=6.0.0
+
+# ── Utilitários ────────────────────────────────────────────────────────────────
+python-dotenv>=1.0.1
+pydantic>=2.7.0
+tenacity>=8.3.0
+python-dateutil>=2.9.0
+pytz>=2024.1
