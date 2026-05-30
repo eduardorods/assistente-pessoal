@@ -42,11 +42,16 @@ def _client_config() -> dict:
 
 
 def _build_flow(state: str | None = None) -> Flow:
+    # autogenerate_code_verifier=False desativa o PKCE. Necessário porque o
+    # Streamlit recria a sessão ao retornar do Google, perdendo o code_verifier
+    # gerado na geração da URL. Sem PKCE, a troca do code não exige o verifier.
+    # Segurança mantida pelo client_secret (confidencial) + redirect_uri exato.
     return Flow.from_client_config(
         _client_config(),
         scopes=SCOPES,
         state=state,
         redirect_uri=st.secrets["google"]["redirect_uri"],
+        autogenerate_code_verifier=False,
     )
 
 
