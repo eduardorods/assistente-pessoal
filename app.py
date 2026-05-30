@@ -173,12 +173,17 @@ def render_chat():
                 st.markdown(msg.content)
 
     # ── Entrada por voz ───────────────────────────────────────────────────────
+    # Não chamamos process_message aqui dentro: renderizar chat dentro do
+    # expander quebra o contexto e re-transcreve o áudio a cada rerun. Em vez
+    # disso, guardamos a transcrição em _quick_prompt e deixamos o fluxo
+    # principal processá-la após renderizar o chat (mesmo padrão das ações rápidas).
     with st.expander("🎙️ Entrada por voz", expanded=False):
         transcribed = render_audio_input()
         if transcribed:
             st.success(f"Transcrição: *{transcribed}*")
             if st.button("Enviar transcrição", key="send_audio"):
-                process_message(transcribed)
+                st.session_state["_quick_prompt"] = transcribed
+                st.rerun()
 
     # ── Entrada por texto ─────────────────────────────────────────────────────
     user_input = st.chat_input("Digite sua mensagem…")
