@@ -9,10 +9,18 @@ Fluxo para Web Application no Streamlit Cloud:
 5. Armazena as credenciais em st.session_state.
 """
 
+import os
+
 import streamlit as st
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import Flow
+
+# Tolera variação de escopos no retorno do Google. Ao trocar permissões, o
+# Google pode devolver escopos já concedidos anteriormente (ex: drive.readonly
+# de uma autorização antiga), o que faria a biblioteca lançar "Scope has
+# changed". Receber escopos a mais não é um problema de segurança.
+os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
 
 # Escopos necessários para Calendar, Drive, Docs e Sheets
 SCOPES = [
