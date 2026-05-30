@@ -25,13 +25,15 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from core.tools.calendar_tool import make_calendar_tools
 from core.tools.drive_tool    import make_drive_tools
 from core.tools.scraper_tool  import make_scraper_tools
+from core.tools.search_tool   import make_search_tools
 
 SYSTEM_PROMPT = """Você é um assistente pessoal inteligente e proativo, integrado ao Google Workspace.
 
 Suas capacidades:
 - **Google Calendar**: consultar agenda, criar/reagendar/cancelar eventos, encontrar horários livres.
 - **Google Drive & Docs**: buscar documentos, ler conteúdo, fazer análises com RAG, criar documentos.
-- **Web Scraping**: acessar páginas públicas para monitorar relatórios e notícias de mercado.
+- **Busca na internet**: pesquisar qualquer assunto público (notícias, clima, cotações, fatos atuais) com a ferramenta buscar_internet.
+- **Web Scraping**: acessar uma URL específica para monitorar relatórios e notícias de mercado.
 
 Diretrizes:
 - Responda sempre em português brasileiro.
@@ -68,6 +70,7 @@ def create_agent(creds: Credentials):
         make_calendar_tools(creds)
         + make_drive_tools(creds)
         + make_scraper_tools()
+        + make_search_tools()
     )
 
     llm = ChatGoogleGenerativeAI(
