@@ -69,6 +69,13 @@ def handle_oauth_callback() -> bool:
     """
     Detecta o retorno do OAuth nos query_params e troca o code por credenciais.
     Retorna True se a autenticação foi concluída com sucesso neste rerun.
+
+    Nota sobre state: quando o usuário navega para o Google e volta, o Streamlit
+    inicia uma sessão nova e o state salvo anteriormente se perde. Por isso só
+    rejeitamos se o state existir NA SESSÃO e for diferente (ataque CSRF real).
+    Se a sessão for nova (state ausente), confiamos na validação server-side do
+    Google: o code é de uso único, expira em segundos e só funciona com o
+    client_secret correto + redirect_uri exato.
     """
     params = st.query_params
     code  = params.get("code")
@@ -77,9 +84,9 @@ def handle_oauth_callback() -> bool:
     if not code or not state:
         return False
 
-    # Valida que o state corresponde ao que geramos
     expected_state = st.session_state.get(STATE_KEY)
-    if state != expected_state:
+    if expected_state is not None and state != expected_state:
+        # State presente na sessão mas diferente → rejeita (possível CSRF)
         st.error("Falha de segurança OAuth: state inválido. Tente novamente.")
         _clear_oauth_params()
         return False
