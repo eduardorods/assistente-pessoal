@@ -3,36 +3,30 @@ Módulo de processamento de áudio.
 
 Estratégia:
 - st.audio_input() captura áudio direto do microfone no browser.
-- OpenAI Whisper API transcreve o áudio para texto.
+- Gemini transcreve o áudio nativamente (multimodal) para texto.
 - O texto é então injetado no chat como mensagem do usuário.
 """
 
-import io
 import streamlit as st
-from openai import OpenAI
+import google.generativeai as genai
 
 
-@st.cache_resource
-def _whisper_client() -> OpenAI:
-    return OpenAI(api_key=st.secrets["openai"]["api_key"])
-
-
-def transcribe_audio(audio_bytes: bytes, filename: str = "audio.wav") -> str:
+def transcribe_audio(audio_bytes: bytes, mime_type: str = "audio/wav") -> str:
     """
-    Envia bytes de áudio para a API Whisper e retorna o texto transcrito.
+    Envia bytes de áudio para o Gemini e retorna o texto transcrito.
     Lança exceção em caso de falha para que o chamador trate o erro.
     """
-    client = _whisper_client()
-    audio_file = io.BytesIO(audio_bytes)
-    audio_file.name = filename
+    genai.configure(api_key=st.secrets["gemini"]["api_key"])
+    model = genai.GenerativeModel("gemini-2.5-flash")
 
-    transcript = client.audio.transcriptions.create(
-        model="whisper-1",
-        file=audio_file,
-        language="pt",          # Força português; remova para auto-detect
-        response_format="text",
+    response = model.generate_content(
+        [
+            "Transcreva o áudio a seguir em português brasileiro. "
+            "Retorne apenas o texto transcrito, sem comentários ou pontuação extra.",
+            {"mime_type": mime_type, "data": audio_bytes},
+        ]
     )
-    return transcript.strip()
+    return response.text.strip()
 
 
 def render_audio_input() -> str | None:
@@ -50,7 +44,7 @@ def render_audio_input() -> str | None:
 
     with st.spinner("Transcrevendo áudio..."):
         try:
-            text = transcribe_audio(audio_value.getvalue(), filename="gravacao.wav")
+            text = transcribe_audio(audio_value.getvalue(), mime_type="audio/wav")
             return text
         except Exception as exc:
             st.warning(f"Falha na transcrição: {exc}")

@@ -14,7 +14,7 @@ from __future__ import annotations
 import streamlit as st
 from google.oauth2.credentials import Credentials
 
-from langchain_anthropic import ChatAnthropic
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, BaseMessage
 from langgraph.graph import StateGraph, MessagesState, END
 from langgraph.prebuilt import ToolNode, tools_condition
@@ -51,11 +51,11 @@ def create_agent(creds: Credentials):
         + make_scraper_tools()
     )
 
-    llm = ChatAnthropic(
-        model="claude-sonnet-4-6",
-        api_key=st.secrets["anthropic"]["api_key"],
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash",
+        google_api_key=st.secrets["gemini"]["api_key"],
         temperature=0.3,
-        max_tokens=4096,
+        max_output_tokens=4096,
     ).bind_tools(tools)
 
     # ── nós ────────────────────────────────────────────────────────────────────

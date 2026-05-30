@@ -18,8 +18,8 @@ from google.oauth2.credentials import Credentials
 from langchain_core.tools import tool
 
 from llama_index.core import VectorStoreIndex, Document
-from llama_index.llms.anthropic import Anthropic as LlamaAnthropic
-from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.llms.gemini import Gemini
+from llama_index.embeddings.gemini import GeminiEmbedding
 
 
 # ── helpers privados ──────────────────────────────────────────────────────────
@@ -89,8 +89,9 @@ def _build_rag_index(_creds_token: str, file_ids: tuple[str, ...], creds: Creden
     Cacheia por 10 min para evitar re-indexação a cada pergunta.
     O argumento _creds_token é usado como chave de cache (não enviado à API).
     """
-    llm   = LlamaAnthropic(model="claude-sonnet-4-6", api_key=st.secrets["anthropic"]["api_key"])
-    embed = OpenAIEmbedding(api_key=st.secrets["openai"]["api_key"])
+    gemini_key = st.secrets["gemini"]["api_key"]
+    llm   = Gemini(model="models/gemini-2.5-flash", api_key=gemini_key)
+    embed = GeminiEmbedding(model_name="models/text-embedding-004", api_key=gemini_key)
 
     docs = []
     drive_service = _drive(creds)

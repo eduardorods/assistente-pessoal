@@ -126,7 +126,7 @@ def render_sidebar():
             st.rerun()
 
         st.divider()
-        st.caption("Powered by Claude · LangGraph · Google Workspace")
+        st.caption("Powered by Gemini · LangGraph · Google Workspace")
 
 
 def process_message(text: str):

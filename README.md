@@ -3,7 +3,7 @@
 Assistente pessoal inteligente integrado ao Google Workspace.  
 100% em nuvem — sem instalação local.
 
-**Stack:** Streamlit · LangGraph · Claude (Anthropic) · Google Workspace APIs · LlamaIndex RAG · Selenium
+**Stack:** Streamlit · LangGraph · Gemini (Google) · Google Workspace APIs · LlamaIndex RAG · Selenium
 
 ---
 
@@ -82,7 +82,7 @@ assistente-pessoal/
 │   └── devcontainer.json         # Configuração GitHub Codespaces
 └── core/
     ├── auth.py                   # OAuth 2.0 Google (fluxo Web Application)
-    ├── audio.py                  # Transcrição de voz via Whisper
+    ├── audio.py                  # Transcrição de voz via Gemini (nativo)
     ├── agent.py                  # Agente LangGraph (ReAct)
     └── tools/
         ├── calendar_tool.py      # Google Calendar (CRUD + slots livres)
@@ -102,11 +102,8 @@ client_id     = "...apps.googleusercontent.com"
 client_secret = "GOCSPX-..."
 redirect_uri  = "https://SEU-APP.streamlit.app"
 
-[anthropic]
-api_key = "sk-ant-..."
-
-[openai]
-api_key = "sk-proj-..."   # Usado apenas para transcrição Whisper
+[gemini]
+api_key = "AIza..."   # Chave única: raciocínio + RAG + transcrição de voz
 ```
 
 No Streamlit Cloud, cole esses valores no painel **App settings → Secrets**.
@@ -157,7 +154,7 @@ Mensagem do usuário
    [LangGraph ReAct]
         │
    ┌────▼────┐
-   │  agent  │ ◄── Claude + bind_tools()
+   │  agent  │ ◄── Gemini 2.5 Flash + bind_tools()
    └────┬────┘
         │ tool_call?
    ┌────▼────┐        ┌─────────────────────────┐
