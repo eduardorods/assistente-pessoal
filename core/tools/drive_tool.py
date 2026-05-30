@@ -192,4 +192,81 @@ def make_drive_tools(creds: Credentials) -> list:
         link = f"https://docs.google.com/document/d/{doc_id}/edit"
         return f"Documento criado: [{titulo}]({link})"
 
-    return [buscar_documentos, ler_documento, perguntar_sobre_documentos, criar_documento]
+    @tool
+    def adicionar_texto_ao_documento(file_id: str, texto: str) -> str:
+        """
+        Adiciona texto ao FINAL de um Google Doc existente.
+        Use para incluir novos parágrafos, seções ou anotações num documento já criado.
+        Args:
+            file_id: ID do documento Google Docs.
+            texto:   Texto a ser adicionado no final do documento.
+        """
+        docs_service = _docs(creds)
+        doc = docs_service.documents().get(documentId=file_id).execute()
+
+        # Posição final do documento (antes do caractere de fim de arquivo)
+        end_index = doc["body"]["content"][-1]["endIndex"] - 1
+
+        requests_body = [
+            {
+                "insertText": {
+                    "location": {"index": end_index},
+                    "text": f"\n{texto}",
+                }
+            }
+        ]
+        docs_service.documents().batchUpdate(
+            documentId=file_id, body={"requests": requests_body}
+        ).execute()
+
+        titulo = doc.get("title", file_id)
+        link   = f"https://docs.google.com/document/d/{file_id}/edit"
+        return f"Texto adicionado ao final de [{titulo}]({link})"
+
+    @tool
+    def substituir_texto_no_documento(file_id: str, texto_antigo: str, texto_novo: str) -> str:
+        """
+        Substitui uma ocorrência de texto em um Google Doc existente.
+        Útil para corrigir trechos, atualizar dados ou reformular parágrafos.
+        Args:
+            file_id:      ID do documento Google Docs.
+            texto_antigo: Trecho exato a ser substituído.
+            texto_novo:   Novo texto que substituirá o trecho.
+        """
+        docs_service = _docs(creds)
+        requests_body = [
+            {
+                "replaceAllText": {
+                    "containsText": {
+                        "text":      texto_antigo,
+                        "matchCase": False,
+                    },
+                    "replaceText": texto_novo,
+                }
+            }
+        ]
+        result = docs_service.documents().batchUpdate(
+            documentId=file_id, body={"requests": requests_body}
+        ).execute()
+
+        ocorrencias = (
+            result.get("replies", [{}])[0]
+            .get("replaceAllText", {})
+            .get("occurrencesChanged", 0)
+        )
+        doc   = docs_service.documents().get(documentId=file_id).execute()
+        titulo = doc.get("title", file_id)
+        link   = f"https://docs.google.com/document/d/{file_id}/edit"
+
+        if ocorrencias == 0:
+            return f"Trecho não encontrado no documento [{titulo}]({link}). Verifique o texto exato."
+        return f"{ocorrencias} ocorrência(s) substituída(s) em [{titulo}]({link})"
+
+    return [
+        buscar_documentos,
+        ler_documento,
+        perguntar_sobre_documentos,
+        criar_documento,
+        adicionar_texto_ao_documento,
+        substituir_texto_no_documento,
+    ]
