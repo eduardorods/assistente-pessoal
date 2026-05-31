@@ -56,7 +56,7 @@ def render_login_screen():
         auth_url = get_authorization_url()
         st.markdown(
             f'''
-            <a href="{auth_url}" target="_self" style="
+            <a href="{auth_url}" target="_top" style="
                 display:inline-block; width:100%; box-sizing:border-box;
                 text-align:center; background:#4F46E5; color:#ffffff;
                 padding:0.65rem 1rem; border-radius:0.5rem;
