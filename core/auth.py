@@ -31,7 +31,8 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/documents",
     "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/gmail.readonly",
+    # gmail.readonly é escopo restrito — requer verificação Google antes do uso
+    # "https://www.googleapis.com/auth/gmail.readonly",
 ]
 
 SESSION_KEY = "google_credentials"
