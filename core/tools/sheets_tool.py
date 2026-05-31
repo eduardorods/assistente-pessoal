@@ -84,12 +84,13 @@ def make_sheets_tools(creds: Credentials) -> list:
         return f"Linha adicionada: {valores}\n🔗 [Abrir planilha]({link})"
 
     @tool
-    def ler_planilha(sheet_id: str, intervalo: str = "A1:Z100", aba: str = "Página1") -> str:
+    def ler_planilha(sheet_id: str, intervalo: str = "A1:BZ200", aba: str = "Página1") -> str:
         """
         Lê os dados de uma planilha e retorna como texto formatado.
+        Indica colunas pela letra (A, B, ... AJ) para facilitar localizar uma célula específica.
         Args:
             sheet_id:  ID da planilha.
-            intervalo: Intervalo de células, ex: "A1:D20" (padrão: "A1:Z100").
+            intervalo: Intervalo de células, ex: "A1:AJ40" (padrão: "A1:BZ200", cobre até a coluna BZ).
             aba:       Nome da aba (padrão: "Página1").
         """
         service = _sheets(creds)
@@ -103,13 +104,42 @@ def make_sheets_tools(creds: Credentials) -> list:
         if not rows:
             return "A planilha está vazia."
 
-        # Formata como tabela simples
+        def col_letter(idx: int) -> str:
+            """0 → A, 25 → Z, 26 → AA, 35 → AJ."""
+            s = ""
+            idx += 1
+            while idx:
+                idx, rem = divmod(idx - 1, 26)
+                s = chr(65 + rem) + s
+            return s
+
+        # Formata como tabela com referência de coluna (col:valor) para localização precisa.
         linhas = []
         for i, row in enumerate(rows):
-            prefixo = "**[cabeçalho]**" if i == 0 else f"Linha {i}"
-            linhas.append(f"{prefixo}: {' | '.join(str(c) for c in row)}")
+            prefixo = "[cabeçalho]" if i == 0 else f"Linha {i + 1}"
+            celulas = " | ".join(f"{col_letter(j)}:{c}" for j, c in enumerate(row) if str(c).strip())
+            linhas.append(f"{prefixo}: {celulas}")
 
         return "\n".join(linhas)
+
+    @tool
+    def ler_celula_planilha(sheet_id: str, celula: str, aba: str = "Página1") -> str:
+        """
+        Lê o valor de uma única célula específica (rápido e sem truncamento).
+        Use quando souber exatamente a célula desejada, ex: "AJ31".
+        Args:
+            sheet_id: ID da planilha.
+            celula:   Referência da célula, ex: "AJ31".
+            aba:      Nome da aba (padrão: "Página1").
+        """
+        service = _sheets(creds)
+        result = service.spreadsheets().values().get(
+            spreadsheetId=sheet_id,
+            range=f"{aba}!{celula}",
+        ).execute()
+        rows = result.get("values", [])
+        valor = rows[0][0] if rows and rows[0] else "(vazia)"
+        return f"{aba}!{celula} = {valor}"
 
     @tool
     def atualizar_celula_planilha(sheet_id: str, celula: str, valor: str, aba: str = "Página1") -> str:
@@ -276,5 +306,5 @@ def make_sheets_tools(creds: Credentials) -> list:
                 + "\n".join(msgs)
                 + f"\n🔗 [Abrir planilha]({link})")
 
-    return [criar_planilha, adicionar_linha_planilha, ler_planilha,
+    return [criar_planilha, adicionar_linha_planilha, ler_planilha, ler_celula_planilha,
             atualizar_celula_planilha, duplicar_aba, substituir_texto_aba, abrir_mes]
