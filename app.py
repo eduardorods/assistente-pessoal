@@ -33,6 +33,11 @@ from core.agent import create_agent, run_agent
 # ── Chaves de session_state ───────────────────────────────────────────────────
 CHAT_HISTORY_KEY = "chat_history"
 AGENT_KEY        = "agent"
+AGENT_VER_KEY    = "agent_version"
+
+# Versão do agente. Incremente sempre que tools/system prompt mudarem para
+# forçar a recriação do agente em sessões já abertas (sem precisar de logout).
+AGENT_VERSION = "2026-05-31-sheets-v2"
 
 
 # =============================================================================
@@ -69,9 +74,13 @@ def init_session():
     if CHAT_HISTORY_KEY not in st.session_state:
         st.session_state[CHAT_HISTORY_KEY] = []
 
-    if AGENT_KEY not in st.session_state:
+    # Recria o agente se ele não existe ou se a versão do código mudou
+    # (após um redeploy do app). Evita tools antigas cacheadas na sessão.
+    if (AGENT_KEY not in st.session_state
+            or st.session_state.get(AGENT_VER_KEY) != AGENT_VERSION):
         creds = get_credentials()
-        st.session_state[AGENT_KEY] = create_agent(creds)
+        st.session_state[AGENT_KEY]     = create_agent(creds)
+        st.session_state[AGENT_VER_KEY] = AGENT_VERSION
 
 
 def render_sidebar():
