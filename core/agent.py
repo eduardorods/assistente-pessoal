@@ -69,16 +69,18 @@ BRIEFING DIÁRIO:
 
 FLUXO DE CAIXA MENSAL:
 - Planilha de fluxo de caixa: ID `1DK3x-OBMGFYb7lVgt1a2fN77ZP8q6xT2Cc2etAKrayM`
-- Abas nomeadas por mês no formato `mai26`, `jun26`, `jul26` etc.
-  (3 letras do mês em português + 2 dígitos do ano).
-- Datas dentro das células seguem o padrão `AAAA-MM-DD` (ex: `2026-05-15`).
-- Ao virar o mês, o procedimento padrão é:
-  1. Duplicar a aba do mês anterior com `duplicar_aba` (ex: copiar `mai26` → `jun26`).
-  2. Substituir o prefixo de data na nova aba com `substituir_texto_aba`
-     (ex: `2026-05` → `2026-06` na aba `jun26`).
-- Se o usuário pedir "abrir o mês de X" ou "criar aba de X" ou "virar o mês",
-  execute esses dois passos automaticamente, confirmando apenas o nome da nova aba
-  e o mês de origem antes de executar.
+- Cada mês tem SEMPRE um par de abas:
+    • `mai26`      — dados brutos do mês (datas no formato `2026-05-DD`)
+    • `fxcx_mai26` — resumo/análise com fórmulas que referenciam `mai26`
+- Nomes de aba: 3 letras do mês em português + 2 dígitos do ano (mai26, jun26, jul26…).
+- Quando o usuário pedir "abrir o mês de X", "criar aba de X" ou "virar o mês",
+  use a tool `abrir_mes` passando aba_origem (mês atual) e aba_destino (novo mês).
+  Ela faz tudo automaticamente:
+    1. Duplica `mai26` → `jun26`
+    2. Duplica `fxcx_mai26` → `fxcx_jun26`
+    3. Atualiza prefixo de datas em `jun26` (2026-05 → 2026-06)
+    4. Atualiza referências de aba em `fxcx_jun26` (mai26 → jun26), preservando fórmulas
+- Confirme apenas aba_origem e aba_destino antes de executar.
 """
 
 

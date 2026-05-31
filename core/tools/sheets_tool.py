@@ -167,55 +167,114 @@ def make_sheets_tools(creds: Credentials) -> list:
         link = f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit"
         return f"Aba '{aba_origem}' copiada para '{novo_nome}' com sucesso. 🔗 [Abrir planilha]({link})"
 
+    def _find_replace(sheet_id: str, tab_numeric_id: int, find: str, replace: str) -> int:
+        """Usa a API findReplace do Sheets (preserva fórmulas). Retorna nº de substituições."""
+        result = service_ref[0].spreadsheets().batchUpdate(
+            spreadsheetId=sheet_id,
+            body={"requests": [{"findReplace": {
+                "find":             find,
+                "replacement":      replace,
+                "includeFormulas":  True,
+                "sheetId":          tab_numeric_id,
+            }}]},
+        ).execute()
+        return result["replies"][0].get("findReplace", {}).get("occurrencesChanged", 0)
+
+    def _get_tab_ids(sheet_id: str) -> dict:
+        info = service_ref[0].spreadsheets().get(spreadsheetId=sheet_id).execute()
+        return {s["properties"]["title"]: s["properties"]["sheetId"] for s in info["sheets"]}
+
+    # service_ref é uma lista para que as closures acima possam ler o service
+    # sem depender de variáveis de escopo externo que mudam a cada chamada de tool.
+    service_ref = [None]
+
     @tool
     def substituir_texto_aba(sheet_id: str, aba: str, texto_original: str, texto_novo: str) -> str:
         """
-        Substitui todas as ocorrências de um texto por outro em toda uma aba.
-        Útil para atualizar datas (ex: "2026/05" → "2026/06"), nomes ou qualquer padrão em massa.
+        Substitui todas as ocorrências de um texto por outro em toda uma aba,
+        preservando fórmulas (usa findReplace nativo do Sheets).
+        Útil para atualizar datas (ex: "2026-05" → "2026-06"), nomes ou qualquer padrão em massa.
         Args:
             sheet_id:       ID da planilha.
             aba:            Nome da aba onde fazer as substituições.
-            texto_original: Texto a ser substituído, ex: "2026/05".
-            texto_novo:     Novo texto, ex: "2026/06".
+            texto_original: Texto a ser substituído, ex: "2026-05".
+            texto_novo:     Novo texto, ex: "2026-06".
         """
-        service = _sheets(creds)
+        service_ref[0] = _sheets(creds)
+        tab_ids = _get_tab_ids(sheet_id)
+        if aba not in tab_ids:
+            return f"Aba '{aba}' não encontrada. Abas disponíveis: {list(tab_ids)}"
 
-        result = service.spreadsheets().values().get(
-            spreadsheetId=sheet_id,
-            range=f"{aba}!A1:ZZ",
-            valueRenderOption="FORMATTED_VALUE",
-        ).execute()
-
-        rows = result.get("values", [])
-        if not rows:
-            return f"A aba '{aba}' está vazia."
-
-        count = 0
-        new_rows = []
-        for row in rows:
-            new_row = []
-            for cell in row:
-                cell_str = str(cell)
-                if texto_original in cell_str:
-                    new_row.append(cell_str.replace(texto_original, texto_novo))
-                    count += 1
-                else:
-                    new_row.append(cell)
-            new_rows.append(new_row)
+        count = _find_replace(sheet_id, tab_ids[aba], texto_original, texto_novo)
+        link  = f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit"
 
         if count == 0:
             return f"Nenhuma ocorrência de '{texto_original}' encontrada na aba '{aba}'."
-
-        service.spreadsheets().values().update(
-            spreadsheetId=sheet_id,
-            range=f"{aba}!A1",
-            valueInputOption="USER_ENTERED",
-            body={"values": new_rows},
-        ).execute()
-
-        link = f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit"
-        return (f"{count} célula(s) atualizadas: '{texto_original}' → '{texto_novo}' "
+        return (f"{count} ocorrência(s) substituída(s): '{texto_original}' → '{texto_novo}' "
                 f"na aba '{aba}'. 🔗 [Abrir planilha]({link})")
 
+    @tool
+    def abrir_mes(sheet_id: str, aba_origem: str, aba_destino: str) -> str:
+        """
+        Abre um novo mês no fluxo de caixa duplicando o par de abas do mês anterior
+        (dados + fxcx) e atualizando todas as referências automaticamente.
+
+        Executa 4 passos:
+        1. Duplica aba_origem → aba_destino           (ex: mai26 → jun26)
+        2. Duplica fxcx_<aba_origem> → fxcx_<aba_destino>  (ex: fxcx_mai26 → fxcx_jun26)
+        3. Substitui prefixo de data em aba_destino   (ex: 2026-05 → 2026-06)
+        4. Substitui referências a aba_origem em fxcx_aba_destino  (garante fórmulas corretas)
+
+        Args:
+            sheet_id:    ID da planilha de fluxo de caixa.
+            aba_origem:  Nome da aba de dados do mês anterior, ex: "mai26".
+            aba_destino: Nome da nova aba de dados,            ex: "jun26".
+        """
+        _MESES = {"jan": "01", "fev": "02", "mar": "03", "abr": "04",
+                  "mai": "05", "jun": "06", "jul": "07", "ago": "08",
+                  "set": "09", "out": "10", "nov": "11", "dez": "12"}
+
+        def tab_to_date_prefix(name: str) -> str:
+            mes_num = _MESES.get(name[:3].lower(), "")
+            ano     = f"20{name[3:]}"
+            return f"{ano}-{mes_num}" if mes_num else ""
+
+        service_ref[0] = _sheets(creds)
+        fxcx_origem  = f"fxcx_{aba_origem}"
+        fxcx_destino = f"fxcx_{aba_destino}"
+        data_origem  = tab_to_date_prefix(aba_origem)
+        data_destino = tab_to_date_prefix(aba_destino)
+
+        def duplicate(source_title: str, new_name: str):
+            ids = _get_tab_ids(sheet_id)
+            if source_title not in ids:
+                raise ValueError(f"Aba '{source_title}' não encontrada. Disponíveis: {list(ids)}")
+            service_ref[0].spreadsheets().batchUpdate(
+                spreadsheetId=sheet_id,
+                body={"requests": [{"duplicateSheet": {
+                    "sourceSheetId": ids[source_title],
+                    "newSheetName":  new_name,
+                }}]},
+            ).execute()
+
+        duplicate(aba_origem, aba_destino)
+        duplicate(fxcx_origem, fxcx_destino)
+
+        tab_ids = _get_tab_ids(sheet_id)
+        msgs = []
+
+        if data_origem and data_destino:
+            n = _find_replace(sheet_id, tab_ids[aba_destino], data_origem, data_destino)
+            msgs.append(f"- Datas: `{data_origem}` → `{data_destino}` em `{aba_destino}` ({n} célula(s))")
+
+        n2 = _find_replace(sheet_id, tab_ids[fxcx_destino], aba_origem, aba_destino)
+        msgs.append(f"- Referências: `{aba_origem}` → `{aba_destino}` em `{fxcx_destino}` ({n2} ocorrência(s))")
+
+        link = f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit"
+        return (f"Mês **{aba_destino}** aberto com sucesso!\n"
+                f"- Abas criadas: `{aba_destino}` e `{fxcx_destino}`\n"
+                + "\n".join(msgs)
+                + f"\n🔗 [Abrir planilha]({link})")
+
     return [criar_planilha, adicionar_linha_planilha, ler_planilha,
-            atualizar_celula_planilha, duplicar_aba, substituir_texto_aba]
+            atualizar_celula_planilha, duplicar_aba, substituir_texto_aba, abrir_mes]
