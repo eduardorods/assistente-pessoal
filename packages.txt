@@ -1,5 +1,2 @@
-# Pacotes de sistema para o Streamlit Community Cloud (Debian/Ubuntu)
-# Necessários para Selenium + Chromium headless
-
 chromium
 chromium-driver
