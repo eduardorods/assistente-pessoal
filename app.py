@@ -48,23 +48,12 @@ def render_login_screen():
         )
         st.divider()
 
-        # Geramos a URL de autorização a cada render (o state é salvo em
-        # session_state junto). Apresentamos como um LINK que o usuário clica:
-        # o clique conta como "ação do usuário", então o navegador permite a
-        # navegação na mesma aba — preservando a sessão para validar o callback.
-        # (Redirect automático via JS é bloqueado dentro do iframe do Codespaces.)
         auth_url = get_authorization_url()
-        st.markdown(
-            f'''
-            <a href="{auth_url}" target="_top" style="
-                display:inline-block; width:100%; box-sizing:border-box;
-                text-align:center; background:#4F46E5; color:#ffffff;
-                padding:0.65rem 1rem; border-radius:0.5rem;
-                text-decoration:none; font-weight:600;">
-                🔐 Conectar com Google
-            </a>
-            ''',
-            unsafe_allow_html=True,
+        st.link_button(
+            "🔐 Conectar com Google",
+            auth_url,
+            use_container_width=True,
+            type="primary",
         )
 
         st.caption(
