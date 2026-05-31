@@ -120,6 +120,8 @@ def render_sidebar():
             st.rerun()
 
         if st.button("🚪  Sair", use_container_width=True):
+            st.session_state.pop(AGENT_KEY, None)
+            st.session_state.pop(CHAT_HISTORY_KEY, None)
             logout()
             st.rerun()
 
@@ -204,6 +206,8 @@ if oauth_just_completed:
 if not is_authenticated() and "_cookie_checked" not in st.session_state:
     st.session_state["_cookie_checked"] = True
     if try_restore_from_cookie():
+        # Garante que o agente seja recriado com as tools da versão atual do app.
+        st.session_state.pop(AGENT_KEY, None)
         st.rerun()
 
 # PASSO 4: Processa quick prompts (ações rápidas ou voz), se houver
