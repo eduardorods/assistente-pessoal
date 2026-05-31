@@ -37,7 +37,7 @@ AGENT_VER_KEY    = "agent_version"
 
 # Versão do agente. Incremente sempre que tools/system prompt mudarem para
 # forçar a recriação do agente em sessões já abertas (sem precisar de logout).
-AGENT_VERSION = "2026-05-31-sheets-v2"
+AGENT_VERSION = "2026-05-31-sheets-v3"
 
 
 # =============================================================================
