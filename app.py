@@ -24,6 +24,8 @@ from core.auth  import (
     get_credentials,
     is_authenticated,
     logout,
+    init_cookie_manager,
+    try_restore_from_cookie,
 )
 from core.audio import render_audio_input, speak
 from core.agent import create_agent, run_agent
@@ -188,13 +190,23 @@ def render_chat():
 # Fluxo principal — executado a cada rerun do Streamlit
 # =============================================================================
 
-# PASSO 1: Detecta e trata o callback OAuth antes de qualquer renderização.
-# Quando o Google redireciona de volta, os query_params contêm code + state.
+# PASSO 1: Renderiza o componente de cookies (necessário antes de qualquer leitura).
+init_cookie_manager()
+
+# PASSO 2: Detecta e trata o callback OAuth.
 oauth_just_completed = handle_oauth_callback()
 if oauth_just_completed:
-    st.rerun()  # Rerun limpo após persistir as credenciais
+    st.rerun()
 
-# PASSO 2: Processa quick prompts (ações rápidas ou voz), se houver
+# PASSO 3: Tenta restaurar sessão a partir do cookie (evita re-login).
+# O CookieManager precisa de um render para disponibilizar os dados,
+# por isso só tenta uma vez por sessão (flag _cookie_checked).
+if not is_authenticated() and "_cookie_checked" not in st.session_state:
+    st.session_state["_cookie_checked"] = True
+    if try_restore_from_cookie():
+        st.rerun()
+
+# PASSO 4: Processa quick prompts (ações rápidas ou voz), se houver
 if "_quick_prompt" in st.session_state and is_authenticated():
     pending_prompt   = st.session_state.pop("_quick_prompt")
     pending_by_voice = st.session_state.pop("_prompt_by_voice", False)
@@ -202,7 +214,7 @@ else:
     pending_prompt   = None
     pending_by_voice = False
 
-# PASSO 3: Roteamento — login ou app
+# PASSO 5: Roteamento — login ou app
 if not is_authenticated():
     render_login_screen()
 else:

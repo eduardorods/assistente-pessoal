@@ -10,6 +10,7 @@ Fluxo para Web Application no Streamlit Cloud:
 """
 
 import os
+from datetime import datetime, timedelta
 
 import streamlit as st
 from google.oauth2.credentials import Credentials
@@ -35,8 +36,80 @@ SCOPES = [
     # "https://www.googleapis.com/auth/gmail.readonly",
 ]
 
-SESSION_KEY = "google_credentials"
-STATE_KEY   = "oauth_state"
+SESSION_KEY  = "google_credentials"
+STATE_KEY    = "oauth_state"
+COOKIE_NAME  = "gauth_rt"   # refresh token persistido no browser
+COOKIE_DAYS  = 30
+
+
+def _cookie_manager():
+    """Retorna o CookieManager (renderiza o componente na página)."""
+    try:
+        import extra_streamlit_components as stx
+        return stx.CookieManager(key="gauth_cm")
+    except Exception:
+        return None
+
+
+def init_cookie_manager():
+    """
+    Deve ser chamado no início de cada render do app.py para garantir que
+    o componente de cookies seja renderizado antes de qualquer leitura.
+    """
+    _cookie_manager()
+
+
+def try_restore_from_cookie() -> bool:
+    """
+    Tenta restaurar credenciais a partir do refresh token salvo em cookie.
+    Retorna True se restaurou com sucesso.
+    """
+    cm = _cookie_manager()
+    if cm is None:
+        return False
+    try:
+        refresh_token = cm.get(COOKIE_NAME)
+        if not refresh_token:
+            return False
+        creds = Credentials(
+            token=None,
+            refresh_token=refresh_token,
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=st.secrets["google"]["client_id"],
+            client_secret=st.secrets["google"]["client_secret"],
+            scopes=SCOPES,
+        )
+        creds.refresh(Request())
+        _store_credentials(creds)
+        return True
+    except Exception:
+        _clear_cookie()
+        return False
+
+
+def _save_cookie(creds: Credentials):
+    """Salva o refresh token em cookie persistente."""
+    if not creds.refresh_token:
+        return
+    cm = _cookie_manager()
+    if cm is None:
+        return
+    try:
+        cm.set(COOKIE_NAME, creds.refresh_token,
+               expires_at=datetime.now() + timedelta(days=COOKIE_DAYS))
+    except Exception:
+        pass
+
+
+def _clear_cookie():
+    """Remove o cookie de autenticação."""
+    cm = _cookie_manager()
+    if cm is None:
+        return
+    try:
+        cm.delete(COOKIE_NAME)
+    except Exception:
+        pass
 
 
 def _client_config() -> dict:
@@ -112,6 +185,7 @@ def handle_oauth_callback() -> bool:
         flow.fetch_token(code=code)
         creds = flow.credentials
         _store_credentials(creds)
+        _save_cookie(creds)
         _clear_oauth_params()
         return True
     except Exception as exc:
@@ -144,9 +218,10 @@ def is_authenticated() -> bool:
 
 
 def logout():
-    """Remove as credenciais da sessão."""
+    """Remove as credenciais da sessão e o cookie persistente."""
     st.session_state.pop(SESSION_KEY, None)
     st.session_state.pop(STATE_KEY, None)
+    _clear_cookie()
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
